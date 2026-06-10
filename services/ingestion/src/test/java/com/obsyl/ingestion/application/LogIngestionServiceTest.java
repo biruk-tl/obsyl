@@ -1,5 +1,8 @@
 package com.obsyl.ingestion.application;
 
+import com.obsyl.ingestion.api.dto.LogRequest;
+import com.obsyl.ingestion.api.error.InvalidLogRequestException;
+import com.obsyl.ingestion.application.validation.LogRequestValidator;
 import com.obsyl.ingestion.domain.EventType;
 import org.junit.jupiter.api.Test;
 
@@ -12,19 +15,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LogIngestionServiceTest {
 
-    private final LogIngestionService service = new LogIngestionService();
+    private final LogIngestionService service = new LogIngestionService(new LogRequestValidator());
 
     @Test
-    void ingestBuildsTelemetryEventEnvelopeFromValidCommand() {
-        var command = new IngestLogCommand(
-                "obsyl-ingestion",
-                "info",
-                "service started",
-                null,
-                null
-        );
+    void ingestBuildsTelemetryEventEnvelopeFromValidRequest() {
+        var request = new LogRequest("obsyl-ingestion", "info", "service started", null, null);
 
-        var envelope = service.ingest(command);
+        var envelope = service.ingest(request);
 
         assertNotNull(envelope.getEventId());
         assertEquals("v1", envelope.getSchemaVersion());
@@ -39,7 +36,7 @@ class LogIngestionServiceTest {
 
     @Test
     void ingestAppliesProvidedTimestampAndEnvironment() {
-        var command = new IngestLogCommand(
+        var request = new LogRequest(
                 "obsyl-ingestion",
                 "WARN",
                 "deployment complete",
@@ -47,7 +44,7 @@ class LogIngestionServiceTest {
                 "staging"
         );
 
-        var envelope = service.ingest(command);
+        var envelope = service.ingest(request);
 
         assertEquals("2026-06-10T14:32:01.123Z", envelope.getTimestamp().toString());
         assertEquals("staging", envelope.getPayload().getEnvironment());
@@ -55,9 +52,9 @@ class LogIngestionServiceTest {
 
     @Test
     void ingestRejectsMissingRequiredFields() {
-        var command = new IngestLogCommand("obsyl-ingestion", null, "service started", null, null);
+        var request = new LogRequest("obsyl-ingestion", null, "service started", null, null);
 
-        var exception = assertThrows(InvalidLogRequestException.class, () -> service.ingest(command));
+        var exception = assertThrows(InvalidLogRequestException.class, () -> service.ingest(request));
 
         assertTrue(exception.getMessage().contains("level"));
     }

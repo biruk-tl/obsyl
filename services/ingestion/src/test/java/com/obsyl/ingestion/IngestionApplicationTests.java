@@ -41,7 +41,7 @@ class IngestionApplicationTests {
 	}
 
 	@Test
-	void ingestLogRejectedWhenRequiredFieldsMissing() throws Exception {
+	void ingestLogReturnsStructuredErrorWhenRequiredFieldsMissing() throws Exception {
 		mockMvc.perform(post("/ingest/log")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -49,6 +49,26 @@ class IngestionApplicationTests {
 								  "message": "service started"
 								}
 								"""))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errorCode").value("INVALID_LOG_REQUEST"))
+				.andExpect(jsonPath("$.message").exists())
+				.andExpect(jsonPath("$.timestamp").exists());
+	}
+
+	@Test
+	void ingestLogReturnsStructuredErrorWhenLevelIsInvalid() throws Exception {
+		mockMvc.perform(post("/ingest/log")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "service": "obsyl-ingestion",
+								  "level": "CRITICAL",
+								  "message": "service started"
+								}
+								"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errorCode").value("INVALID_LOG_REQUEST"))
+				.andExpect(jsonPath("$.message").value("level must be one of: INFO, WARN, ERROR, DEBUG"))
+				.andExpect(jsonPath("$.timestamp").exists());
 	}
 }

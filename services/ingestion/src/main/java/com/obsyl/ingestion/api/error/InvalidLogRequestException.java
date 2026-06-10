@@ -1,7 +1,7 @@
-package com.obsyl.ingestion.application;
+package com.obsyl.ingestion.api.error;
 
 /**
- * Raised when an incoming log ingestion request fails application-layer validation.
+ * Raised when an incoming log ingestion request fails validation.
  */
 public class InvalidLogRequestException extends RuntimeException {
 
