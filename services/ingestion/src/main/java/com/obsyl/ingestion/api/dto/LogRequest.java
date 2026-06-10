@@ -1,15 +1,16 @@
 package com.obsyl.ingestion.api.dto;
 
+import java.time.Instant;
+
 /**
  * External HTTP payload for log ingestion requests.
- * This DTO belongs to the API boundary and should not leak into domain internals.
+ * API-boundary only — must not be used outside the API layer.
  */
 public record LogRequest(
-        String message,
-        String level,
         String service,
-        String timestamp,
-        String environment,
-        String traceId
+        String level,
+        String message,
+        Instant timestamp,
+        String environment
 ) {
 }
