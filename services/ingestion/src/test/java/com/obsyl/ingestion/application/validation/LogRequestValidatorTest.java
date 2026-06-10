@@ -14,21 +14,21 @@ class LogRequestValidatorTest {
 
     @Test
     void validateAcceptsValidRequest() {
-        var request = new LogRequest("obsyl-ingestion", "INFO", "service started", null, null);
+        var request = new LogRequest("obsyl-ingestion", "INFO", "service started", null, null, null);
 
         assertDoesNotThrow(() -> validator.validate(request));
     }
 
     @Test
     void validateAcceptsCaseInsensitiveLevel() {
-        var request = new LogRequest("obsyl-ingestion", "warn", "service started", null, null);
+        var request = new LogRequest("obsyl-ingestion", "warn", "service started", null, null, null);
 
         assertDoesNotThrow(() -> validator.validate(request));
     }
 
     @Test
     void validateRejectsMissingService() {
-        var request = new LogRequest(null, "INFO", "service started", null, null);
+        var request = new LogRequest(null, "INFO", "service started", null, null, null);
 
         var exception = assertThrows(InvalidLogRequestException.class, () -> validator.validate(request));
 
@@ -37,7 +37,7 @@ class LogRequestValidatorTest {
 
     @Test
     void validateRejectsInvalidLevel() {
-        var request = new LogRequest("obsyl-ingestion", "CRITICAL", "service started", null, null);
+        var request = new LogRequest("obsyl-ingestion", "CRITICAL", "service started", null, null, null);
 
         var exception = assertThrows(InvalidLogRequestException.class, () -> validator.validate(request));
 

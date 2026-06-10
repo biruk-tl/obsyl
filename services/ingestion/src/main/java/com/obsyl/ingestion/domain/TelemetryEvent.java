@@ -1,5 +1,7 @@
 package com.obsyl.ingestion.domain;
 
+import com.obsyl.ingestion.domain.schema.TelemetrySchemaVersion;
+
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
@@ -7,6 +9,12 @@ import java.util.Objects;
 /**
  * Root domain aggregate representing any observability event in Obsyl.
  * Framework-free by design — the canonical internal truth for telemetry data.
+ *
+ * <p>{@code schemaVersion} is required for backward compatibility. Kafka consumers,
+ * storage adapters, and replay pipelines depend on this field to select the correct
+ * deserialization and mapping logic. When omitted at creation time, events default to V1.
+ * Future V2 compatibility will be handled via {@code TelemetrySchemaEvolutionStrategy}
+ * in the application layer.
  */
 public final class TelemetryEvent {
 
@@ -37,12 +45,19 @@ public final class TelemetryEvent {
         this.timestamp = Objects.requireNonNull(timestamp, "timestamp must not be null");
         this.service = Objects.requireNonNull(service, "service must not be null");
         this.environment = Objects.requireNonNull(environment, "environment must not be null");
-        this.schemaVersion = Objects.requireNonNull(schemaVersion, "schemaVersion must not be null");
+        this.schemaVersion = resolveSchemaVersion(schemaVersion);
         this.eventType = Objects.requireNonNull(eventType, "eventType must not be null");
         this.metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
         this.logEvent = logEvent;
         this.metricEvent = metricEvent;
         this.traceEvent = traceEvent;
+    }
+
+    private static String resolveSchemaVersion(String schemaVersion) {
+        if (schemaVersion == null || schemaVersion.isBlank()) {
+            return TelemetrySchemaVersion.V1;
+        }
+        return schemaVersion.trim();
     }
 
     public String getEventId() {

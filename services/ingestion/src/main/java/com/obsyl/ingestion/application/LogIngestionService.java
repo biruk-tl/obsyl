@@ -6,6 +6,7 @@ import com.obsyl.ingestion.domain.EventType;
 import com.obsyl.ingestion.domain.LogEvent;
 import com.obsyl.ingestion.domain.TelemetryEvent;
 import com.obsyl.ingestion.domain.TelemetryEventEnvelope;
+import com.obsyl.ingestion.domain.schema.TelemetrySchemaVersion;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -19,7 +20,6 @@ import java.util.UUID;
 @Service
 public class LogIngestionService {
 
-    private static final String SCHEMA_VERSION = "v1";
     private static final String DEFAULT_ENVIRONMENT = "unknown";
 
     private final LogRequestValidator logRequestValidator;
@@ -31,6 +31,7 @@ public class LogIngestionService {
     public TelemetryEventEnvelope ingest(LogRequest request) {
         logRequestValidator.validate(request);
 
+        String incomingSchemaVersion = resolveIncomingSchemaVersion(request.schemaVersion());
         Instant timestamp = request.timestamp() != null ? request.timestamp() : Instant.now();
         String environment = resolveEnvironment(request.environment());
         LogEvent logEvent = new LogEvent(
@@ -43,7 +44,7 @@ public class LogIngestionService {
                 timestamp,
                 request.service().trim(),
                 environment,
-                SCHEMA_VERSION,
+                TelemetrySchemaVersion.V1,
                 EventType.LOG,
                 Map.of(),
                 logEvent,
@@ -51,7 +52,28 @@ public class LogIngestionService {
                 null
         );
 
-        return TelemetryEventEnvelope.wrap(event);
+        // Normalize all incoming events to internal V1 format.
+        // Future support for V2 transformation layer:
+        // if (TelemetrySchemaVersion.V2.equals(incomingSchemaVersion)) {
+        //     event = telemetrySchemaEvolutionStrategy.transformV2ToV1(event);
+        // }
+        TelemetryEvent normalizedEvent = normalizeToV1(event, incomingSchemaVersion);
+
+        return TelemetryEventEnvelope.wrap(normalizedEvent);
+    }
+
+    private String resolveIncomingSchemaVersion(String schemaVersion) {
+        if (schemaVersion == null || schemaVersion.isBlank()) {
+            return TelemetrySchemaVersion.V1;
+        }
+        return schemaVersion.trim();
+    }
+
+    private TelemetryEvent normalizeToV1(TelemetryEvent event, String incomingSchemaVersion) {
+        if (TelemetrySchemaVersion.V2.equals(incomingSchemaVersion)) {
+            // Future: return telemetrySchemaEvolutionStrategy.transformV2ToV1(event);
+        }
+        return event;
     }
 
     private String resolveEnvironment(String environment) {

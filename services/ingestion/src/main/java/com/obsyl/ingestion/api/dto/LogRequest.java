@@ -11,6 +11,7 @@ public record LogRequest(
         String level,
         String message,
         Instant timestamp,
-        String environment
+        String environment,
+        String schemaVersion
 ) {
 }
