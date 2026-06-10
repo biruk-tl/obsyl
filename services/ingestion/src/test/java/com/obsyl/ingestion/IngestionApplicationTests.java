@@ -23,7 +23,26 @@ class IngestionApplicationTests {
 	}
 
 	@Test
-	void ingestLogAcceptedAndDefaultsApplied() throws Exception {
+	void ingestLogAcceptedWhenRequiredFieldsPresent() throws Exception {
+		mockMvc.perform(post("/ingest/log")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "message": "service started",
+								  "level": "INFO",
+								  "service": "obsyl-ingestion"
+								}
+								"""))
+				.andExpect(status().isAccepted())
+				.andExpect(jsonPath("$.status").value("accepted"))
+				.andExpect(jsonPath("$.message").value("service started"))
+				.andExpect(jsonPath("$.level").value("INFO"))
+				.andExpect(jsonPath("$.service").value("obsyl-ingestion"))
+				.andExpect(jsonPath("$.timestamp").exists());
+	}
+
+	@Test
+	void ingestLogRejectedWhenRequiredFieldsMissing() throws Exception {
 		mockMvc.perform(post("/ingest/log")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -31,12 +50,7 @@ class IngestionApplicationTests {
 								  "message": "service started"
 								}
 								"""))
-				.andExpect(status().isAccepted())
-				.andExpect(jsonPath("$.status").value("accepted"))
-				.andExpect(jsonPath("$.message").value("service started"))
-				.andExpect(jsonPath("$.level").value("INFO"))
-				.andExpect(jsonPath("$.service").value("unknown-service"))
-				.andExpect(jsonPath("$.timestamp").exists());
+				.andExpect(status().isBadRequest());
 	}
 
 }

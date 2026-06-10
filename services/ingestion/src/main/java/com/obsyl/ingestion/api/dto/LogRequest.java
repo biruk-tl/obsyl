@@ -9,6 +9,7 @@ public record LogRequest(
         String level,
         String service,
         String timestamp,
+        String environment,
         String traceId
 ) {
 }

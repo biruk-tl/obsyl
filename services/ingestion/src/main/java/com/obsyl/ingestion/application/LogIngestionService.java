@@ -12,24 +12,31 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Core use-case handler for log ingestion.
+ * Converts validated API requests into canonical domain telemetry events.
+ */
 @Service
 public class LogIngestionService {
 
-    private static final String SCHEMA_VERSION = "1";
-    private static final String DEFAULT_ENVIRONMENT = "local";
+    private static final String SCHEMA_VERSION = "v1";
+    private static final String DEFAULT_ENVIRONMENT = "unknown";
 
     public TelemetryEvent ingest(LogRequest request) {
-        Instant timestamp = parseOrNow(request.timestamp());
+        validate(request);
+
+        Instant timestamp = resolveTimestamp(request.timestamp());
+        String environment = resolveEnvironment(request.environment());
         LogEvent logEvent = new LogEvent(
-                normalizeLevel(request.level()),
-                normalizeMessage(request.message())
+                request.level().trim().toUpperCase(),
+                request.message().trim()
         );
 
-        TelemetryEvent event = new TelemetryEvent(
+        return new TelemetryEvent(
                 UUID.randomUUID().toString(),
                 timestamp,
-                normalizeService(request.service()),
-                DEFAULT_ENVIRONMENT,
+                request.service().trim(),
+                environment,
                 SCHEMA_VERSION,
                 EventType.LOG,
                 buildMetadata(request.traceId()),
@@ -37,60 +44,46 @@ public class LogIngestionService {
                 null,
                 null
         );
-
-        // Future extension point:
-        // - publish event to Kafka for asynchronous distributed processing
-        // - persist event into durable storage (PostgreSQL / Elasticsearch)
-        return event;
     }
 
-    private Map<String, Object> buildMetadata(String traceId) {
-        String normalizedTraceId = normalizeTraceId(traceId);
-        if (normalizedTraceId == null) {
-            return Map.of();
+    private void validate(LogRequest request) {
+        requirePresent(request.service(), "service");
+        requirePresent(request.message(), "message");
+        requirePresent(request.level(), "level");
+    }
+
+    private void requirePresent(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new InvalidLogRequestException(fieldName + " is required");
         }
-        Map<String, Object> metadata = new HashMap<>();
-        metadata.put("traceId", normalizedTraceId);
-        return Map.copyOf(metadata);
     }
 
-    private Instant parseOrNow(String timestamp) {
+    private Instant resolveTimestamp(String timestamp) {
         if (timestamp == null || timestamp.isBlank()) {
             return Instant.now();
         }
 
         try {
-            return Instant.parse(timestamp);
-        } catch (DateTimeParseException ignored) {
-            return Instant.now();
+            return Instant.parse(timestamp.trim());
+        } catch (DateTimeParseException ex) {
+            throw new InvalidLogRequestException("timestamp must be a valid ISO-8601 instant");
         }
     }
 
-    private String normalizeMessage(String message) {
-        if (message == null || message.isBlank()) {
-            return "<empty-log-message>";
+    private String resolveEnvironment(String environment) {
+        if (environment == null || environment.isBlank()) {
+            return DEFAULT_ENVIRONMENT;
         }
-        return message.trim();
+        return environment.trim();
     }
 
-    private String normalizeLevel(String level) {
-        if (level == null || level.isBlank()) {
-            return "INFO";
-        }
-        return level.trim().toUpperCase();
-    }
-
-    private String normalizeService(String service) {
-        if (service == null || service.isBlank()) {
-            return "unknown-service";
-        }
-        return service.trim();
-    }
-
-    private String normalizeTraceId(String traceId) {
+    private Map<String, Object> buildMetadata(String traceId) {
         if (traceId == null || traceId.isBlank()) {
-            return null;
+            return Map.of();
         }
-        return traceId.trim();
+
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("traceId", traceId.trim());
+        return Map.copyOf(metadata);
     }
 }
