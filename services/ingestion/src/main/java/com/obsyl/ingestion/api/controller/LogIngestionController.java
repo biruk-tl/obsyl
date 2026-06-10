@@ -3,7 +3,7 @@ package com.obsyl.ingestion.api.controller;
 import com.obsyl.ingestion.api.dto.LogIngestionResponse;
 import com.obsyl.ingestion.api.dto.LogRequest;
 import com.obsyl.ingestion.application.LogIngestionService;
-import com.obsyl.ingestion.domain.LogEvent;
+import com.obsyl.ingestion.domain.TelemetryEvent;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,7 +22,7 @@ public class LogIngestionController {
 
     @PostMapping("/log")
     public ResponseEntity<LogIngestionResponse> ingestLog(@RequestBody LogRequest request) {
-        LogEvent event = logIngestionService.ingest(request);
+        TelemetryEvent event = logIngestionService.ingest(request);
         return ResponseEntity.accepted().body(LogIngestionResponse.accepted(event));
     }
 }
