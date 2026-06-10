@@ -4,19 +4,30 @@ import com.obsyl.ingestion.api.dto.LogRequest;
 import com.obsyl.ingestion.api.error.InvalidLogRequestException;
 import com.obsyl.ingestion.application.validation.LogRequestValidator;
 import com.obsyl.ingestion.domain.EventType;
+import com.obsyl.ingestion.domain.event.TelemetryIngestedEvent;
 import com.obsyl.ingestion.domain.schema.TelemetrySchemaVersion;
+import com.obsyl.ingestion.infrastructure.event.InMemoryEventPublisher;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LogIngestionServiceTest {
 
-    private final LogIngestionService service = new LogIngestionService(new LogRequestValidator());
+    private InMemoryEventPublisher eventPublisher;
+    private LogIngestionService service;
+
+    @BeforeEach
+    void setUp() {
+        eventPublisher = new InMemoryEventPublisher();
+        service = new LogIngestionService(new LogRequestValidator(), eventPublisher);
+    }
 
     @Test
     void ingestBuildsTelemetryEventEnvelopeFromValidRequest() {
@@ -33,6 +44,23 @@ class LogIngestionServiceTest {
         assertEquals("unknown", envelope.getPayload().getEnvironment());
         assertEquals("INFO", envelope.getPayload().getLogEvent().getLevel());
         assertEquals("service started", envelope.getPayload().getLogEvent().getMessage());
+    }
+
+    @Test
+    void ingestPublishesTelemetryIngestedEvent() {
+        var request = new LogRequest("obsyl-ingestion", "INFO", "service started", null, null, null);
+
+        var envelope = service.ingest(request);
+
+        assertEquals(1, eventPublisher.getPublishedEvents().size());
+        var publishedEvent = eventPublisher.getPublishedEvents().get(0);
+        assertInstanceOf(TelemetryIngestedEvent.class, publishedEvent);
+
+        var ingestedEvent = (TelemetryIngestedEvent) publishedEvent;
+        assertEquals(envelope.getEventId(), ingestedEvent.getEventId());
+        assertEquals(EventType.LOG, ingestedEvent.getEventType());
+        assertEquals(TelemetrySchemaVersion.V1, ingestedEvent.getSchemaVersion());
+        assertEquals(envelope, ingestedEvent.getPayload());
     }
 
     @Test
@@ -77,5 +105,6 @@ class LogIngestionServiceTest {
         var exception = assertThrows(InvalidLogRequestException.class, () -> service.ingest(request));
 
         assertTrue(exception.getMessage().contains("level"));
+        assertEquals(0, eventPublisher.getPublishedEvents().size());
     }
 }

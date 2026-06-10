@@ -1,11 +1,13 @@
 package com.obsyl.ingestion.application;
 
 import com.obsyl.ingestion.api.dto.LogRequest;
+import com.obsyl.ingestion.application.event.EventPublisher;
 import com.obsyl.ingestion.application.validation.LogRequestValidator;
 import com.obsyl.ingestion.domain.EventType;
 import com.obsyl.ingestion.domain.LogEvent;
 import com.obsyl.ingestion.domain.TelemetryEvent;
 import com.obsyl.ingestion.domain.TelemetryEventEnvelope;
+import com.obsyl.ingestion.domain.event.TelemetryIngestedEvent;
 import com.obsyl.ingestion.domain.schema.TelemetrySchemaVersion;
 import org.springframework.stereotype.Service;
 
@@ -15,7 +17,8 @@ import java.util.UUID;
 
 /**
  * Core use-case handler for log ingestion.
- * Validates requests and converts them into enveloped domain telemetry events.
+ * Validates requests, converts them into enveloped domain telemetry events,
+ * and publishes ingestion domain events for downstream processing.
  */
 @Service
 public class LogIngestionService {
@@ -23,9 +26,11 @@ public class LogIngestionService {
     private static final String DEFAULT_ENVIRONMENT = "unknown";
 
     private final LogRequestValidator logRequestValidator;
+    private final EventPublisher eventPublisher;
 
-    public LogIngestionService(LogRequestValidator logRequestValidator) {
+    public LogIngestionService(LogRequestValidator logRequestValidator, EventPublisher eventPublisher) {
         this.logRequestValidator = logRequestValidator;
+        this.eventPublisher = eventPublisher;
     }
 
     public TelemetryEventEnvelope ingest(LogRequest request) {
@@ -58,8 +63,11 @@ public class LogIngestionService {
         //     event = telemetrySchemaEvolutionStrategy.transformV2ToV1(event);
         // }
         TelemetryEvent normalizedEvent = normalizeToV1(event, incomingSchemaVersion);
+        TelemetryEventEnvelope envelope = TelemetryEventEnvelope.wrap(normalizedEvent);
 
-        return TelemetryEventEnvelope.wrap(normalizedEvent);
+        eventPublisher.publish(TelemetryIngestedEvent.from(envelope));
+
+        return envelope;
     }
 
     private String resolveIncomingSchemaVersion(String schemaVersion) {
