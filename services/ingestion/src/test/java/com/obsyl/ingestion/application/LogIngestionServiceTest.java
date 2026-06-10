@@ -6,6 +6,8 @@ import com.obsyl.ingestion.application.validation.LogRequestValidator;
 import com.obsyl.ingestion.domain.EventType;
 import com.obsyl.ingestion.domain.event.TelemetryIngestedEvent;
 import com.obsyl.ingestion.domain.schema.TelemetrySchemaVersion;
+import com.obsyl.ingestion.infrastructure.buffer.InMemoryEventBuffer;
+import com.obsyl.ingestion.infrastructure.event.BatchedEventPublisher;
 import com.obsyl.ingestion.infrastructure.event.InMemoryEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,13 +22,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LogIngestionServiceTest {
 
-    private InMemoryEventPublisher eventPublisher;
+    private InMemoryEventPublisher delegatePublisher;
     private LogIngestionService service;
 
     @BeforeEach
     void setUp() {
-        eventPublisher = new InMemoryEventPublisher();
-        service = new LogIngestionService(new LogRequestValidator(), eventPublisher);
+        delegatePublisher = new InMemoryEventPublisher();
+        var batchedPublisher = new BatchedEventPublisher(new InMemoryEventBuffer(), delegatePublisher);
+        service = new LogIngestionService(new LogRequestValidator(), batchedPublisher);
     }
 
     @Test
@@ -47,13 +50,13 @@ class LogIngestionServiceTest {
     }
 
     @Test
-    void ingestPublishesTelemetryIngestedEvent() {
+    void ingestPublishesTelemetryIngestedEventThroughBufferedPipeline() {
         var request = new LogRequest("obsyl-ingestion", "INFO", "service started", null, null, null);
 
         var envelope = service.ingest(request);
 
-        assertEquals(1, eventPublisher.getPublishedEvents().size());
-        var publishedEvent = eventPublisher.getPublishedEvents().get(0);
+        assertEquals(1, delegatePublisher.getPublishedEvents().size());
+        var publishedEvent = delegatePublisher.getPublishedEvents().get(0);
         assertInstanceOf(TelemetryIngestedEvent.class, publishedEvent);
 
         var ingestedEvent = (TelemetryIngestedEvent) publishedEvent;
@@ -105,6 +108,6 @@ class LogIngestionServiceTest {
         var exception = assertThrows(InvalidLogRequestException.class, () -> service.ingest(request));
 
         assertTrue(exception.getMessage().contains("level"));
-        assertEquals(0, eventPublisher.getPublishedEvents().size());
+        assertEquals(0, delegatePublisher.getPublishedEvents().size());
     }
 }

@@ -10,7 +10,8 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * In-memory event publisher that simulates stream delivery until Kafka is introduced.
+ * Downstream in-memory publisher that receives batches from {@link BatchedEventPublisher}.
+ * Simulates stream delivery until Kafka is introduced.
  */
 @Component
 public class InMemoryEventPublisher implements EventPublisher {
