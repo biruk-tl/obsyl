@@ -15,7 +15,7 @@ class LogIngestionServiceTest {
     private final LogIngestionService service = new LogIngestionService();
 
     @Test
-    void ingestBuildsTelemetryEventFromValidCommand() {
+    void ingestBuildsTelemetryEventEnvelopeFromValidCommand() {
         var command = new IngestLogCommand(
                 "obsyl-ingestion",
                 "info",
@@ -24,16 +24,17 @@ class LogIngestionServiceTest {
                 null
         );
 
-        var event = service.ingest(command);
+        var envelope = service.ingest(command);
 
-        assertNotNull(event.getEventId());
-        assertEquals("obsyl-ingestion", event.getService());
-        assertEquals("unknown", event.getEnvironment());
-        assertEquals("v1", event.getSchemaVersion());
-        assertEquals(EventType.LOG, event.getEventType());
-        assertEquals("INFO", event.getLogEvent().getLevel());
-        assertEquals("service started", event.getLogEvent().getMessage());
-        assertNotNull(event.getTimestamp());
+        assertNotNull(envelope.getEventId());
+        assertEquals("v1", envelope.getSchemaVersion());
+        assertEquals(EventType.LOG, envelope.getEventType());
+        assertNotNull(envelope.getTimestamp());
+        assertEquals(envelope.getEventId(), envelope.getPayload().getEventId());
+        assertEquals("obsyl-ingestion", envelope.getPayload().getService());
+        assertEquals("unknown", envelope.getPayload().getEnvironment());
+        assertEquals("INFO", envelope.getPayload().getLogEvent().getLevel());
+        assertEquals("service started", envelope.getPayload().getLogEvent().getMessage());
     }
 
     @Test
@@ -46,10 +47,10 @@ class LogIngestionServiceTest {
                 "staging"
         );
 
-        var event = service.ingest(command);
+        var envelope = service.ingest(command);
 
-        assertEquals("2026-06-10T14:32:01.123Z", event.getTimestamp().toString());
-        assertEquals("staging", event.getEnvironment());
+        assertEquals("2026-06-10T14:32:01.123Z", envelope.getTimestamp().toString());
+        assertEquals("staging", envelope.getPayload().getEnvironment());
     }
 
     @Test

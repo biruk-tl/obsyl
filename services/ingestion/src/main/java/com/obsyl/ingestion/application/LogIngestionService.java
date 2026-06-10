@@ -3,6 +3,7 @@ package com.obsyl.ingestion.application;
 import com.obsyl.ingestion.domain.EventType;
 import com.obsyl.ingestion.domain.LogEvent;
 import com.obsyl.ingestion.domain.TelemetryEvent;
+import com.obsyl.ingestion.domain.TelemetryEventEnvelope;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -11,7 +12,7 @@ import java.util.UUID;
 
 /**
  * Core use-case handler for log ingestion.
- * Converts validated application commands into canonical domain telemetry events.
+ * Converts validated application commands into enveloped domain telemetry events.
  */
 @Service
 public class LogIngestionService {
@@ -19,7 +20,7 @@ public class LogIngestionService {
     private static final String SCHEMA_VERSION = "v1";
     private static final String DEFAULT_ENVIRONMENT = "unknown";
 
-    public TelemetryEvent ingest(IngestLogCommand command) {
+    public TelemetryEventEnvelope ingest(IngestLogCommand command) {
         validate(command);
 
         Instant timestamp = command.timestamp() != null ? command.timestamp() : Instant.now();
@@ -29,7 +30,7 @@ public class LogIngestionService {
                 command.message().trim()
         );
 
-        return new TelemetryEvent(
+        TelemetryEvent event = new TelemetryEvent(
                 UUID.randomUUID().toString(),
                 timestamp,
                 command.service().trim(),
@@ -41,6 +42,8 @@ public class LogIngestionService {
                 null,
                 null
         );
+
+        return TelemetryEventEnvelope.wrap(event);
     }
 
     private void validate(IngestLogCommand command) {

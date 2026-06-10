@@ -23,7 +23,7 @@ class IngestionApplicationTests {
 	}
 
 	@Test
-	void ingestLogReturnsTelemetryEventWhenRequiredFieldsPresent() throws Exception {
+	void ingestLogReturnsIngestionResponseWhenRequiredFieldsPresent() throws Exception {
 		mockMvc.perform(post("/ingest/log")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -35,13 +35,9 @@ class IngestionApplicationTests {
 								"""))
 				.andExpect(status().isAccepted())
 				.andExpect(jsonPath("$.eventId").exists())
-				.andExpect(jsonPath("$.service").value("obsyl-ingestion"))
-				.andExpect(jsonPath("$.environment").value("unknown"))
-				.andExpect(jsonPath("$.schemaVersion").value("v1"))
-				.andExpect(jsonPath("$.eventType").value("LOG"))
-				.andExpect(jsonPath("$.logEvent.level").value("INFO"))
-				.andExpect(jsonPath("$.logEvent.message").value("service started"))
-				.andExpect(jsonPath("$.timestamp").exists());
+				.andExpect(jsonPath("$.status").value("SUCCESS"))
+				.andExpect(jsonPath("$.timestamp").exists())
+				.andExpect(jsonPath("$.message").value("log ingested successfully"));
 	}
 
 	@Test

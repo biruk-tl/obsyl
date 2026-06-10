@@ -1,9 +1,9 @@
 package com.obsyl.ingestion.api.controller;
 
+import com.obsyl.ingestion.api.dto.IngestionResponse;
 import com.obsyl.ingestion.api.dto.LogRequest;
 import com.obsyl.ingestion.application.IngestLogCommand;
 import com.obsyl.ingestion.application.LogIngestionService;
-import com.obsyl.ingestion.domain.TelemetryEvent;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,13 +23,14 @@ public class LogController {
 
     @PostMapping("/log")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public TelemetryEvent ingestLog(@RequestBody LogRequest request) {
-        return logIngestionService.ingest(new IngestLogCommand(
+    public IngestionResponse ingestLog(@RequestBody LogRequest request) {
+        var envelope = logIngestionService.ingest(new IngestLogCommand(
                 request.service(),
                 request.level(),
                 request.message(),
                 request.timestamp(),
                 request.environment()
         ));
+        return IngestionResponse.success(envelope);
     }
 }
